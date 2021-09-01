@@ -2,14 +2,22 @@
 section GmailPowerBI;
 
 
-client_id = "";
-client_secret = "";
+client_id = "744011364321-679kniskgq81ach4obhpl19239ad6pvr.apps.googleusercontent.com";
+client_secret = "l50X4DutQOo4Am8brAwV9bsM";
 
 redirect_uri = "https://preview.powerbi.com/views/oauthredirect.html";
 
 windowWidth = 1200;
 windowHeight = 1000;
 
+
+formatOptions = [
+    #"full" = "full",
+    #"full (include binary Attachments)" = "full",
+    #"raw" = "raw",
+    #"minimal" = "minimal",
+    #"metadata" = "metadata"
+];
 
 [DataSource.Kind="GmailPowerBI", Publish="GmailPowerBI.Publish"]
 
@@ -44,26 +52,47 @@ GmailPowerBI.getListLabels = (userId as text) =>
 
 GmailPowerBI.getMessage = (
         userId as text, 
-        messagesId as text, 
+        messageId as text, 
         optional format as text, 
         optional metadataHeaders as text
         ) =>
     let
-        endpoint = "https://gmail.googleapis.com/gmail/v1/users/" &userId& "/messages/" &messagesId,
-
+        endpoint = "https://gmail.googleapis.com/gmail/v1/users/" &userId& "/messages/" &messageId,
+        messageFormat = Record.FieldOrDefault(formatOptions, format, "full"),
         addparams =
             let
                 a = [],
-                b = add_rec(a, "format", format),
+                b = add_rec(a, "format", messageFormat),
                 c = add_rec(b, "metadataHeaders", metadataHeaders)
             in
                 c,
-
-        data = Json.Document(Web.Contents(endpoint, [Query = addparams]))
-
+        message = Json.Document(Web.Contents(endpoint, [Query = addparams])),
+        Attach =
+            let
+                parts = message[payload][parts],
+                partsWithAttach = List.Select(parts, each Record.HasFields(_[body], "attachmentId") ),
+                getAllattach = 
+                    List.Transform(partsWithAttach, each 
+                       Record.AddField(_, "binaryContent",   
+                         GmailPowerBI.getAttachment( userId, messageId, _[body][attachmentId]) 
+                        )) 
+            in
+               getAllattach,
+        combineRecord = if format = "full (include binary Attachments)" then Record.AddField(message, "Attacments", Attach) else message 
     in
-        data;
+        combineRecord;
 
+
+GmailPowerBI.getAttachment = (
+        userId as text, 
+        messageId as text,
+        attachmentId as text
+        ) =>
+    let
+        endpoint = "https://gmail.googleapis.com/gmail/v1/users/" &userId& "/messages/" &messageId& "/attachments/" & attachmentId,
+        attach = Json.Document(Web.Contents(endpoint))
+    in 
+        attach;
 
 GmailPowerBI.getListMessages = (
         userId as text, 
@@ -88,6 +117,7 @@ GmailPowerBI.getListMessages = (
                 e,
         data = Json.Document(Web.Contents(endpoint, [Query = addparams])),
 
+
         messages = 
             let
                 messageList = data[messages],
@@ -98,13 +128,6 @@ GmailPowerBI.getListMessages = (
     in
         messages;
 
-/*
-GmailPowerBI.getAttachment = (attachId) =>
-    let
-        endpoint = "https://gmail.googleapis.com/gmail/v1/users/" &user_id& "/messages/" &messageId& "/attachments/" &attachId
-    in
-        endpoint;
-*/
 
 
 GmailPowerBI = [
