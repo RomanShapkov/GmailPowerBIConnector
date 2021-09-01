@@ -2,8 +2,8 @@
 section GmailPowerBI;
 
 
-client_id = "744011364321-679kniskgq81ach4obhpl19239ad6pvr.apps.googleusercontent.com";
-client_secret = "l50X4DutQOo4Am8brAwV9bsM";
+client_id = "";
+client_secret = "";
 
 redirect_uri = "https://preview.powerbi.com/views/oauthredirect.html";
 
