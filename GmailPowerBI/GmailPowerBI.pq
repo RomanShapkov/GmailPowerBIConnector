@@ -107,6 +107,7 @@ GmailPowerBI.getAttachment = () =>
 */
 
 GmailPowerBI = [
+    TestConnection = (dataSourcePath) => {"GmailPowerBI.NavTableNested"},
     Authentication = [
         OAuth = [
             StartLogin = StartLogin,
