@@ -2,8 +2,8 @@
 section GmailPowerBI;
 
 
-client_id = "744011364321-679kniskgq81ach4obhpl19239ad6pvr.apps.googleusercontent.com";
-client_secret = "l50X4DutQOo4Am8brAwV9bsM";
+client_id = "";
+client_secret = "";
 
 redirect_uri = "https://preview.powerbi.com/views/oauthredirect.html";
 
@@ -25,7 +25,8 @@ shared GmailPowerBI.NavTableNested = () as table =>
             {
                 {"getListLabels", "getListLabels", GmailPowerBI.getListLabels, "function", "function", "true"},
                 {"getListMessages", "getListMessages", GmailPowerBI.getListMessages, "function", "function", "true"},
-                {"getMessage", "getMessage", GmailPowerBI.getMessage, "function", "function", "true"}
+                {"getMessage", "getMessage", GmailPowerBI.getMessage, "function", "function", "true"},
+                {"Base64Url.Decode", "Base64Url.Decode", Base64Url.Decode, "function", "function", "true"}
             }   
         )
     in
@@ -53,15 +54,15 @@ GmailPowerBI.getMessage = (
         addparams =
             let
                 a = [],
-                b = add_rec(a, "maxResults", format),
-                c = add_rec(b, "labelIds", metadataHeaders)
+                b = add_rec(a, "format", format),
+                c = add_rec(b, "metadataHeaders", metadataHeaders)
             in
                 c,
 
-        data = Json.Document(Web.Contents(endpoint, [Query = addparams])),
-        table = toTable(data[labels])
+        data = Json.Document(Web.Contents(endpoint, [Query = addparams]))
+
     in
-        table;
+        data;
 
 
 GmailPowerBI.getListMessages = (
@@ -70,11 +71,12 @@ GmailPowerBI.getListMessages = (
         optional query as text,
         optional maxResults as number,
         optional includeSpamTrash as logical,
-        optional pagenate_results as logical
+        optional messageFormat as text,
+        optional metadataHeaders as text,
+        optional pagenateResults as logical
         ) =>
     let
         endpoint = "https://gmail.googleapis.com/gmail/v1/users/" &userId& "/messages",
-
         addparams =
             let
                 a = [],
@@ -84,27 +86,26 @@ GmailPowerBI.getListMessages = (
                 e = add_rec(d, "q", query)
             in
                 e,
+        data = Json.Document(Web.Contents(endpoint, [Query = addparams])),
 
-        data = Json.Document(Web.Contents(endpoint, [Query = addparams]))
-
+        messages = 
+            let
+                messageList = data[messages],
+                messageDetails = List.Transform( messageList, each GmailPowerBI.getMessage(userId, _[id], messageFormat, metadataHeaders)),
+                rows = if messageFormat is null then messageList else messageDetails
+            in
+                toTable(rows)
     in
-        data;
+        messages;
 
 /*
-GmailPowerBI.getAttachment = () =>
+GmailPowerBI.getAttachment = (attachId) =>
     let
-        endpoint = "https://gmail.googleapis.com/gmail/v1/users/" &user_id& "/messages/" &messageId& "/attachments/" &attach1,
-
-        params = [
-            userId=user_id,
-            maxResults=Text.From(500),
-            labelIds = label
-        ],
-
-        data = Json.Document(Web.Contents(endpoint))
+        endpoint = "https://gmail.googleapis.com/gmail/v1/users/" &user_id& "/messages/" &messageId& "/attachments/" &attachId
     in
-        data;
+        endpoint;
 */
+
 
 GmailPowerBI = [
     TestConnection = (dataSourcePath) => {"GmailPowerBI.NavTableNested"},
@@ -227,3 +228,12 @@ Table.ToNavigationTable = (
         navigationTable = Value.ReplaceType(table, newTableType)
     in
         navigationTable;
+
+//Curth 
+//https://community.powerbi.com/t5/Power-Query/Decode-JWT-token-in-custom-connector/m-p/1643221
+Base64Url.Decode = (s) => 
+    Binary.FromText(
+        Text.Replace( Text.Replace(s, "-", "+"), "_", "/") 
+        & 
+        {"", "", "==", "="}{Number.Mod(Text.Length(s), 4)}
+    , BinaryEncoding.Base64);
