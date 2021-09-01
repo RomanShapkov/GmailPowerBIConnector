@@ -73,7 +73,7 @@ GmailPowerBI.getMessage = (
                 partsWithAttach = List.Select(parts, each Record.HasFields(_[body], "attachmentId") ),
                 getAllattach = 
                     List.Transform(partsWithAttach, each 
-                       Record.AddField(_, "binaryContent",   
+                       Record.AddField(_, "base64UrlContent",   
                          GmailPowerBI.getAttachment( userId, messageId, _[body][attachmentId]) 
                         )) 
             in
