@@ -16,7 +16,8 @@ formatOptions = [
     #"full (include binary Attachments)" = "full",
     #"raw" = "raw",
     #"minimal" = "minimal",
-    #"metadata" = "metadata"
+    #"metadata" = "metadata",
+    #"only Ids" = null
 ];
 
 [DataSource.Kind="GmailPowerBI", Publish="GmailPowerBI.Publish"]
@@ -34,12 +35,83 @@ shared GmailPowerBI.NavTableNested = () as table =>
                 {"getListLabels", "getListLabels", GmailPowerBI.getListLabels, "function", "function", "true"},
                 {"getListMessages", "getListMessages", GmailPowerBI.getListMessages, "function", "function", "true"},
                 {"getMessage", "getMessage", GmailPowerBI.getMessage, "function", "function", "true"},
+                {"getAttachment", "getAttachment", GmailPowerBI.getAttachment, "function", "function", "true"},
                 {"Base64Url.Decode", "Base64Url.Decode", Base64Url.Decode, "function", "function", "true"}
             }   
         )
     in
         NavTable(lv1);
 
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Documentation func
+/*
+userId as text, 
+optional labelIds as text, 
+optional query as text,
+optional maxResults as number,
+optional includeSpamTrash as logical,
+optional messageFormat as text,
+optional metadataHeaders as text,
+optional pagenateResults as logical
+*/
+
+
+GmailPowerBI.getListMessages = Value.ReplaceType(GmailPowerBI.getListMessagesImpl, GmailPowerBI.getListMessagesType);
+GmailPowerBI.getListMessagesType =
+type function (  
+                     userId as (type text meta [
+                        Documentation.FieldCaption = "Gmail account",
+                        Documentation.FieldDescription = "The user's email address. The special value me can be used to indicate the authenticated user.",
+                        Documentation.SampleValues = {"romanshapkov@gmail.com"}
+                        ]),
+                     optional labelIds as (type text meta [
+                        Documentation.FieldCaption = "label IDs",
+                        Documentation.FieldDescription = "Only return messages with labels that match all of the specified label IDs",
+                        Documentation.SampleValues = {"INBOX", "CHAT", "SPAM", "Label_61045850528162158"}
+                     ]),
+                     optional query as (type text meta [
+                        Documentation.FieldCaption = "Gmail search box",
+                        Documentation.FieldDescription = "Only return messages matching the specified query.#(cr)#(lf)Supports the same query format as the Gmail search box.#(cr)#(lf)For example, 'from:someuser@example.com rfc822msgid:<somemsgid@example.com> is:unread'.#(cr)#(lf) Parameter cannot be used when accessing the api using the gmail.metadata scope.",
+                        Documentation.SampleValues = {"from:(support@prog4.ru) after:2021/8/1 before:2021/9/2 subject:reports_flow ","from:(support@prog4.ru) to:(romanshapkov@gmail.com) subject:reports_flow after:2021/8/29 before:2021/9/5","from:(support@prog4.ru) after:2021/8/1 before:2021/9/2", "from:someuser@example.com rfc822msgid:<somemsgid@example.com> is:unread"},
+                        Formatting.IsMultiLine = true,
+                        Formatting.IsCode = true
+                     ]),
+                     optional maxResults as (type text meta [
+                        Documentation.FieldCaption = "Maximum number of messages",
+                        Documentation.FieldDescription = "Maximum number of messages to return. This field defaults to 100. The maximum allowed value for this field is 500.",
+                        Documentation.SampleValues = {"500"}
+                     ]),
+                     optional includeSpamTrash as (type logical meta [
+                        Documentation.FieldCaption = "Include messages from SPAM and TRASH in the results.",
+                        Documentation.FieldDescription = "Include messages from SPAM and TRASH in the results.",
+                        Documentation.SampleValues = {"True", "False"},
+                        Documentation.AllowedValues = {true, false}
+                     ]),
+                     optional messageFormat as (type text meta [
+                        Documentation.FieldCaption = "The format to return the message in.",
+                        Documentation.FieldDescription = "The format to return the message in.",
+                        Documentation.SampleValues = Record.FieldNames(formatOptions),
+                        Documentation.AllowedValues = Record.FieldNames(formatOptions)
+                     ]),
+                     optional metadataHeaders as (type text meta [
+                        Documentation.FieldCaption = "When given and format is METADATA, only include headers specified.",
+                        Documentation.FieldDescription = "When given and format is METADATA, only include headers specified."
+                     ]),
+                     optional pagenateResults as (type logical meta [
+                        Documentation.FieldCaption = "Activate pagination results.",
+                        Documentation.FieldDescription = "Activate pagination results.",
+                        Documentation.SampleValues = {"True", "False"},
+                        Documentation.AllowedValues = {true, false}
+                     ])
+                   )
+        as function meta [
+            Documentation.Name = "getListMessages",
+            Documentation.LongDescription = "Gets the specified messages. Include binary attachment"
+    ];
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 GmailPowerBI.getListLabels = (userId as text) =>
     let
@@ -73,7 +145,7 @@ GmailPowerBI.getMessage = (
                 partsWithAttach = List.Select(parts, each Record.HasFields(_[body], "attachmentId") ),
                 getAllattach = 
                     List.Transform(partsWithAttach, each 
-                       Record.AddField(_, "binaryContent",   
+                       Record.AddField(_, "base64UrlContent",   
                          GmailPowerBI.getAttachment( userId, messageId, _[body][attachmentId]) 
                         )) 
             in
@@ -94,7 +166,7 @@ GmailPowerBI.getAttachment = (
     in 
         attach;
 
-GmailPowerBI.getListMessages = (
+GmailPowerBI.getListMessagesImpl = (
         userId as text, 
         optional labelIds as text, 
         optional query as text,
@@ -127,7 +199,6 @@ GmailPowerBI.getListMessages = (
                 toTable(rows)
     in
         messages;
-
 
 
 GmailPowerBI = [
