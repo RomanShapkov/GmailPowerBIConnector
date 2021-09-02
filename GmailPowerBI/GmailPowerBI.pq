@@ -77,7 +77,7 @@ type function (
                         Formatting.IsMultiLine = true,
                         Formatting.IsCode = true
                      ]),
-                     optional maxResults as (type text meta [
+                     optional maxResults as (type number meta [
                         Documentation.FieldCaption = "Maximum number of messages",
                         Documentation.FieldDescription = "Maximum number of messages to return. This field defaults to 100. The maximum allowed value for this field is 500.",
                         Documentation.SampleValues = {"500"}
@@ -111,9 +111,76 @@ type function (
     ];
 
 
+GmailPowerBI.getListLabels = Value.ReplaceType(GmailPowerBI.getListLabelsImpl, GmailPowerBI.getListLabelsType);
+GmailPowerBI.getListLabelsType =
+type function (  
+                     userId as (type text meta [
+                        Documentation.FieldCaption = "Gmail account",
+                        Documentation.FieldDescription = "The user's email address. The special value me can be used to indicate the authenticated user.",
+                        Documentation.SampleValues = {"romanshapkov@gmail.com"}
+                        ])
+                   )
+        as function meta [
+            Documentation.Name = "getListMessages",
+            Documentation.LongDescription = "Gets Lists all labels in the user's mailbox."
+    ];
+
+GmailPowerBI.getMessage = Value.ReplaceType(GmailPowerBI.getMessageImpl, GmailPowerBI.getMessageType);
+GmailPowerBI.getMessageType =
+type function (  
+                     userId as (type text meta [
+                        Documentation.FieldCaption = "Gmail account",
+                        Documentation.FieldDescription = "The user's email address. The special value me can be used to indicate the authenticated user.",
+                        Documentation.SampleValues = {"romanshapkov@gmail.com"}
+                        ]),
+                     messageId as (type text meta [
+                        Documentation.FieldCaption = "messageId",
+                        Documentation.FieldDescription = "The ID of the message to retrieve. This ID is usually retrieved using messages.list. The ID is also contained in the result when a message is inserted (messages.insert) or imported (messages.import).",
+                        Documentation.SampleValues = {"17ba028a6c26f02f"}
+                        ]),
+                     optional messageFormat as (type text meta [
+                        Documentation.FieldCaption = "The format to return the message in.",
+                        Documentation.FieldDescription = "The format to return the message in.",
+                        Documentation.SampleValues = Record.FieldNames(formatOptions),
+                        Documentation.AllowedValues = Record.FieldNames(formatOptions)
+                     ]),
+                     optional metadataHeaders as (type text meta [
+                        Documentation.FieldCaption = "When given and format is METADATA, only include headers specified.",
+                        Documentation.FieldDescription = "When given and format is METADATA, only include headers specified."
+                     ])
+                   )
+        as function meta [
+            Documentation.Name = "getMessage",
+            Documentation.LongDescription = "Gets the specified message. Include binary attachment"
+    ];
+
+GmailPowerBI.getAttachment = Value.ReplaceType(GmailPowerBI.getAttachmentImpl, GmailPowerBI.getAttachmentType);
+GmailPowerBI.getAttachmentType =
+type function (  
+                     userId as (type text meta [
+                        Documentation.FieldCaption = "Gmail account",
+                        Documentation.FieldDescription = "The user's email address. The special value me can be used to indicate the authenticated user.",
+                        Documentation.SampleValues = {"romanshapkov@gmail.com"}
+                        ]),
+                     messageId as (type text meta [
+                        Documentation.FieldCaption = "messageId",
+                        Documentation.FieldDescription = "The ID of the message containing the attachment.",
+                        Documentation.SampleValues = {"17ba028a6c26f02f"}
+                        ]),
+                     attachmentId as (type text meta [
+                        Documentation.FieldCaption = "attachmentId",
+                        Documentation.FieldDescription = "The ID of the attachment.",
+                        Documentation.SampleValues = {"WhctKKWxdNPgdbTzXcLtszvTkLkqRZFnlVLqxXzHWhgTZcgwzcHsFtMVfHrdDrGSTSVGtzG"}
+                        ])
+                   )
+        as function meta [
+            Documentation.Name = "getMessage",
+            Documentation.LongDescription = "Gets the specified message. Include binary attachment"
+    ];
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-GmailPowerBI.getListLabels = (userId as text) =>
+GmailPowerBI.getListLabelsImpl = (userId as text) =>
     let
         endpoint = "https://gmail.googleapis.com/gmail/v1/users/" &userId& "/labels",
         data = Json.Document(Web.Contents(endpoint)),
@@ -122,7 +189,7 @@ GmailPowerBI.getListLabels = (userId as text) =>
         table;
 
 
-GmailPowerBI.getMessage = (
+GmailPowerBI.getMessageImpl = (
         userId as text, 
         messageId as text, 
         optional format as text, 
@@ -155,7 +222,7 @@ GmailPowerBI.getMessage = (
         combineRecord;
 
 
-GmailPowerBI.getAttachment = (
+GmailPowerBI.getAttachmentImpl = (
         userId as text, 
         messageId as text,
         attachmentId as text
@@ -283,7 +350,7 @@ GmailPowerBI.Icons = [
 
 
 add_rec = (rec as record, recname as text, value as any) =>
-    if value is null then rec else Record.AddField(rec, recname, value);
+    if value is null then rec else Record.AddField(rec, recname, Text.From(value));
 
 
 toTable = (lstrec as list, optional index as number) as table =>
